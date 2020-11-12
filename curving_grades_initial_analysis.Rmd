@@ -1,0 +1,172 @@
+---
+title: "Curving Grades Project"
+output: html_notebook
+---
+```{r setup}
+#packages
+library(tidyverse)
+library(plotrix) #for std.error
+library(broom)
+
+#data
+setwd("~/Documents/projects/curving-grades/")
+NUT10_likert <- read.csv("NUT10_Likert_only.csv")
+prompt_key <-read.csv("curving_questions_prompt_key.csv")
+
+colnames(NUT10_likert)
+```
+
+```{r pval function}
+sig_signs <- function(p){
+  case_when(between(p, 0.05, 0.07) ~  "#",
+            between(p, 0.01, 0.05) ~ "*",
+            p < 0.01 ~ "**",
+            TRUE ~ "")
+}
+
+
+testp <- c("0.001", "0.009", "0.04", "0.055", "0.10")
+
+sig_signs(testp)
+```
+
+```{r data cleaning filtering}
+#initial analysis 
+
+#filter data 
+
+likert <-
+NUT10_likert %>% 
+  filter(Progress == 100 & Finished == "TRUE") %>% #remove students who did not finish 
+  filter(Duration..in.seconds. > 300) %>% #remove stuents who took less than 3 minutes
+  filter(consent_full_name != "") %>% #remove students who did not consent by entering their full name at start
+  filter(Q57_11 == "Strongly Disagree" & Q59_1 == "Strongly Disagree") #remove students who missed validation Qs
+
+#remaining sample size =  611
+```
+
+```{r likert to numeric}
+#convert likert scales to numeric 
+
+#center neutrals at 0 
+#-2 = Strongly Disagree, -1 = Disagree, 0 = Neutral, +1 = Agree, +2 = Strongly Disagree 
+
+
+lik_long <-
+likert %>%
+#select likert Qs only
+  select(-Q45_1, -Q47, -Q79, -Q75_15) %>% # Q45_1 and Q47 other multiple choice, Q79 free response, Q75_15 blank
+#pivot to long format: one question per row
+  pivot_longer(cols = starts_with("Q"), names_to = "question",   
+                values_to = "response",values_drop_na = TRUE)  %>%
+#relevel the answer codes to numeric likert scale
+  mutate(response = tolower(as.character(response))) %>% #convert to character for ease of recode, all lower to avoid case issues
+  mutate(score = recode(response,
+                        "strongly disagree" = "-2",  #recodes Q35_
+                        "disagree" = "-1",
+                        "neither agree/ nor disagree" = "0",
+                        "neither agree/nor disagree" = "0",
+                        "neither agree / nor disagree" = "0",
+                        "neither agree nor disagree" = "0",
+                        "neutral" = "0",
+                        "agree" = "1",
+                        "strongly agree" = "2")) %>%
+  mutate(score = as.numeric(score)) %>%
+#join questions with prompts from survey (for graph titles / legends)
+  inner_join(., prompt_key) #joins by "question"
+
+```
+
+
+
+```{r competitiveness Qs}
+#student competitiveness
+
+#factor 2 in Natalia's email to Brian Sato
+#includes Qs: Q57_4, Q57_5, Q59_11, Q59_13
+
+competitionQs <- c("Q57_4", "Q57_5", "Q59_11", "Q59_13")
+
+#average scores for each question 
+
+lik_long %>%
+  filter(question %in% competitionQs) %>%
+  group_by(question) %>%
+  drop_na(score) %>%
+  summarise(n = n(),
+            mean_score = mean(score),
+            se_score = std.error(score),
+            median_score = median(score)) 
+```
+
+```{r competitiveness ttest plot}
+#t-test if each is sig different from 0 
+
+lik_long %>%
+  filter(question %in% competitionQs) %>%
+  group_by(prompt) %>%
+  nest() %>%
+  mutate(ttest = lapply(data, function(df) t.test(df$score, mu = 0)), #one-sided t-test, mean diff from 0?
+         tidy_t = map(ttest, tidy)) %>%
+  unnest(tidy_t) %>%
+  mutate(p.value = round(p.value, digits = 4),
+         sig = sig_signs(p.value)) %>%
+  
+  #CAN I PLOT THIS? YES!
+  ggplot(aes(x = prompt, y = estimate)) +
+  geom_col(color = "black", fill = "white") +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high ), width = 0.5) +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 20)) + 
+  geom_text(aes(y = conf.high + 0.5, label = sig), size = 6)+   
+  labs(y = "Average Likert score", x = NULL, 
+       title = "Students do not believe curving hinders cooperation") + 
+  #ylim(-1,1)+
+  theme_classic()
+```
+
+```{r test anxiety}
+#student test anxiety 
+
+anxietyQs <- c("Q77_1", "Q77_2", "Q77_3", "Q77_4", #Ballen et al 2017 Qs
+               "Q77_5", "Q77_6", "Q77_7", "Q77_8")
+
+#average scores for each question 
+
+lik_long %>%
+  filter(question %in% anxietyQs) %>%
+  group_by(question) %>%
+  drop_na(score) %>%
+  summarise(n = n(),
+            mean_score = mean(score),
+            se_score = std.error(score),
+            median_score = median(score)) 
+
+lik_long %>%
+  filter(question %in% anxietyQs) %>%
+  group_by(prompt) %>%
+  nest() %>%
+  mutate(ttest = lapply(data, function(df) t.test(df$score, mu = 0)), #one-sided t-test, mean diff from 0?
+         tidy_t = map(ttest, tidy)) %>%
+  unnest(tidy_t) %>%
+  mutate(p.value = round(p.value, digits = 4),
+         sig = sig_signs(p.value)) %>%
+  
+  #CAN I PLOT THIS? YES!
+  ggplot(aes(x = prompt, y = estimate)) +
+  geom_col(color = "black", fill = "white") +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high ), width = 0.5) +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 20)) + 
+  geom_text(aes(y = conf.high + 0.5, label = sig), size = 6)+   
+  labs(y = "Average Likert score", x = NULL, 
+       title = "Students tend to have test anxiety") + 
+  #ylim(-1,1)+
+  theme_classic() + theme(axis.text.x = element_text(angle = 90, vjust = 1))
+```
+```{r}
+#average test anxiety score (with reverse Qs reverse coded) Correlates with curving preferences?
+```
+
+
+
+
+
