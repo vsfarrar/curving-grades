@@ -7,16 +7,20 @@ output: html_notebook
 library(tidyverse)
 library(plotrix) #for std.error
 library(broom)
+library(forcats)
 
 #data
 setwd("~/Documents/projects/curving-grades/")
 NUT10_likert <- read.csv("NUT10_Likert_only.csv")
+NUT10supp <- read.csv("NUT10_remaining_surveys.csv")
 prompt_key <-read.csv("curving_questions_prompt_key.csv")
 
 colnames(NUT10_likert)
 ```
 
 ```{r pval function}
+#creates character signs for p-value levels 
+
 sig_signs <- function(p){
   case_when(between(p, 0.05, 0.07) ~  "#",
             between(p, 0.01, 0.05) ~ "*",
@@ -29,7 +33,7 @@ testp <- c("0.001", "0.009", "0.04", "0.055", "0.10")
 
 sig_signs(testp)
 ```
-
+# Data Cleaning, Filtering 
 ```{r data cleaning filtering}
 #initial analysis 
 
@@ -76,9 +80,35 @@ likert %>%
   inner_join(., prompt_key) #joins by "question"
 
 ```
+```{r}
+#supplemental surveys
+
+supp <- NUT10supp %>%
+  filter(Progress == 100 & Finished == "TRUE") #filter by those who finished the survey (n = 273)
+  
+
+full_data <- 
+  left_join(likert, supp, by = "sid")
+
+colnames(full_data)
+
+#percentages of students that believe what curving is 
+
+full_data %>%
+  filter(Q11 != "") %>%
+  drop_na(Q11) %>%
+  group_by(Q11) %>%
+  tally() %>%
+  ggplot(aes(x = Q11, y = n/201)) +  #percent because divided by total n that answered
+  geom_col() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 20)) + 
+  theme_classic()
+
+```
 
 
 
+# Student Competitiveness / Cooperation
 ```{r competitiveness Qs}
 #student competitiveness
 
@@ -150,7 +180,7 @@ lik_long %>%
   unnest(tidy_t) %>%
   mutate(p.value = round(p.value, digits = 4),
          sig = sig_signs(p.value)) %>%
-  
+  mutate(prompt = fct_reorder(prompt, desc(estimate))) %>% #this reorder by estimate value does not work. 
   #CAN I PLOT THIS? YES!
   ggplot(aes(x = prompt, y = estimate)) +
   geom_col(color = "black", fill = "white") +
@@ -164,6 +194,28 @@ lik_long %>%
 ```
 ```{r}
 #average test anxiety score (with reverse Qs reverse coded) Correlates with curving preferences?
+```
+
+# Students that answered Supp Survey Only 
+## Curving preferences by curving belief
+
+```{r}
+#factor1 in Natalia's email (positive views about curving)
+  #Q57_3 - Curving  reduces number of students who fail
+  #Q57_13 if doing poorly, rahter curved than not curved
+  #Q57_2- curving benefits all students
+  #Q57_5 - curves helpful to students wiht less experience
+  #Q57_1 curving classes makes them more fair 
+
+factor1 <- c("Q57_3", "Q57_13", "Q57_2", "Q57_5", "Q57_1")
+
+full_data %>%
+ select(sid, factor1)
+
+#rowwise average across factor 1 (all coded in same direction)
+#then, group / plot according to response to Q11 (curving preference)
+
+
 ```
 
 
