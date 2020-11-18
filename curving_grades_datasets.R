@@ -33,11 +33,19 @@ likert <-
 supp <- NUT10supp %>%
   filter(Progress == 100 & Finished == "TRUE") #filter by those who finished the survey (n = 273)
 
+#remove duplicates from the data 
+
+sum(duplicated(likert$sid)) #21 have duplicates in likert dataset
+sum(duplicated(supp$sid)) #only 2 sid with duplicates in supplemental
+
+supp_unique <- distinct(supp, sid, .keep_all = TRUE) #distinct keeps the first row - so first survey attempt. 
+likert_unique <-distinct(likert, sid, .keep_all = TRUE)
+
 #join datasets together
-  #join all likert data (n = 611) with all those who finished the supplemental survey (n = 273)
+  #join all likert data (n = 590) with all those who finished the supplemental survey (n = 271)
 
 full_data <- 
-  left_join(likert, supp, by = "sid")
+  left_join(likert_unique, supp_unique, by = "sid")
 
 #CONVERT LIKERT Qs to NUMERIC
 
@@ -79,12 +87,6 @@ lik_long %>%
   group_by(sid) %>%
   tidyr::pivot_wider(names_from = question, values_from = score) 
 
-#ISSUE: sample size is 590 now, not 611 when choosing distinct id. this means some students did the survey multiple times. 
-
-lik_long %>%
-  distinct(sid) %>% tally()
-
-likert %>% distinct(sid) %>% tally()
-
+#export file
 #write.csv(likert_wide, "~/Downloads/2020-11-17_NUT10_cleaned_likert_questions.csv")
   
