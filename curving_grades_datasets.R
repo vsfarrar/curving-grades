@@ -47,6 +47,19 @@ likert_unique <-distinct(likert, sid, .keep_all = TRUE)
 full_data <- 
   left_join(likert_unique, supp_unique, by = "sid")
 
+#GET CONSENSUS ON CURVING DEFINITION 
+#definitions are either in Q79 or Q11 
+  #students who answered in original survey (Q79) or appended survey (Q11)
+
+#set white space to NA (lots of whitespace in Q79 and Q11)
+full_data[full_data == ""] <- NA
+
+#cet consensus of Q11 and Q79 
+  #if one NA, takes non-NA value between two 
+  #if neither NA and there is a mismatch, Q79 from original survey will be chosen (first in order)
+full_data$curve_def <-
+  coalesce(full_data$Q79, full_data$Q11)
+
 #CONVERT LIKERT Qs to NUMERIC
 
 #center neutrals at 0 
@@ -55,8 +68,7 @@ full_data <-
 lik_long <-
   full_data %>%
   #select likert Qs only
-  select(-Q45_1, -Q47, -Q79, -Q75_15, -Q9, -Q11_4_TEXT, #other mult.choice, Q79 free response, Q75_15 blank
-         curve_def = Q11) %>% #rename Q11 curve definition so that it does not get pivoted
+  select(-Q45_1, -Q47, -Q79, -Q75_15, -Q9, -Q11_4_TEXT) %>% #other mult.choice, Q79 free response, Q75_15 blank #rename Q11 curve definition so that it does not get pivoted
   #pivot to long format: one question per row
   pivot_longer(cols = starts_with("Q"), names_to = "question",   
                values_to = "response",values_drop_na = TRUE)  %>%
@@ -73,11 +85,10 @@ lik_long <-
                         "agree" = "1",
                         "strongly agree" = "2")) %>%
   mutate(score = as.numeric(score)) %>%
-  mutate(curve_def = ifelse(curve_def == "", NA, curve_def)) %>%
-  mutate(curve_def = factor(curve_def, levels = c("ranked set letter grade percents", "scaled using class average",
-                                                  "scaled so most students pass", "Other"))) %>%
   #join questions with prompts from survey (for graph titles / legends)
   left_join(., prompt_key) #joins by "question"
+
+ 
 
 #create likert wide to send to Natalia with numeric-converted Likerts (with cleaned data only)
 likert_wide <-
@@ -89,4 +100,5 @@ lik_long %>%
 
 #export file
 #write.csv(likert_wide, "~/Downloads/2020-11-17_NUT10_cleaned_likert_questions.csv")
-  
+
+
