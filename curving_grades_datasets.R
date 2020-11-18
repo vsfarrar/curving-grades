@@ -54,12 +54,25 @@ full_data <-
 #set white space to NA (lots of whitespace in Q79 and Q11)
 full_data[full_data == ""] <- NA
 
-#cet consensus of Q11 and Q79 
+#get consensus of Q11 and Q79 
   #if one NA, takes non-NA value between two 
   #if neither NA and there is a mismatch, Q79 from original survey will be chosen (first in order)
 full_data$curve_def <-
   coalesce(full_data$Q79, full_data$Q11)
 
+#convert curve_definitions to more interpretable levels 
+  #grab levels 
+  full_curve_defs <- levels(as.factor(full_data$curve_def))
+  #recode curve_def
+    full_data <- 
+    full_data %>%
+    mutate(curve_def = case_when(
+      curve_def == full_curve_defs[1] ~ "ranked", 
+      curve_def == full_curve_defs[2] ~ "scaled_pass", 
+      curve_def == full_curve_defs[3] ~ "scaled_avg",
+      TRUE ~  curve_def
+    ))
+  
 #CONVERT LIKERT Qs to NUMERIC
 
 #center neutrals at 0 
@@ -85,6 +98,8 @@ lik_long <-
                         "agree" = "1",
                         "strongly agree" = "2")) %>%
   mutate(score = as.numeric(score)) %>%
+  mutate(curve_def = factor(curve_def, levels = c("ranked", "scaled_avg",
+                                                  "scaled_pass", "Other"))) %>%
   #join questions with prompts from survey (for graph titles / legends)
   left_join(., prompt_key) #joins by "question"
 
