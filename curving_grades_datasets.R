@@ -5,6 +5,9 @@ library(tidyverse)
 library(plotrix) #for std.error
 library(broom)
 library(forcats)
+library(RColorBrewer)
+library(EnvStats) #for stat n
+library(cowplot)
 
 #data
 setwd("~/Documents/projects/curving-grades/")
@@ -63,8 +66,25 @@ lik_long <-
                         "strongly agree" = "2")) %>%
   mutate(score = as.numeric(score)) %>%
   mutate(curve_def = ifelse(curve_def == "", NA, curve_def)) %>%
+  mutate(curve_def = factor(curve_def, levels = c("ranked set letter grade percents", "scaled using class average",
+                                                  "scaled so most students pass", "Other"))) %>%
   #join questions with prompts from survey (for graph titles / legends)
   left_join(., prompt_key) #joins by "question"
 
+#create likert wide to send to Natalia with numeric-converted Likerts (with cleaned data only)
+likert_wide <-
+lik_long %>%
+  distinct(sid,question, .keep_all = TRUE) %>%
+  select(sid, question, score) %>%
+  group_by(sid) %>%
+  tidyr::pivot_wider(names_from = question, values_from = score) 
 
-#.tsv used to edit long responses in Excel. 
+#ISSUE: sample size is 590 now, not 611 when choosing distinct id. this means some students did the survey multiple times. 
+
+lik_long %>%
+  distinct(sid) %>% tally()
+
+likert %>% distinct(sid) %>% tally()
+
+#write.csv(likert_wide, "~/Downloads/2020-11-17_NUT10_cleaned_likert_questions.csv")
+  

@@ -10,4 +10,3 @@ sig_signs <- function(p){
             p < 0.01 ~ "**",
             TRUE ~ "")
 }
-
