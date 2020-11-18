@@ -1,0 +1,299 @@
+---
+title: "Curving Grades Analysis: SoTL poster"
+output: html_notebook
+---
+```{r setup}
+#data import 
+source("curving_grades_datasets.R")
+source("curving_grades_functions.R")
+
+#original survey and supplemental survey for NUT10, long format
+nut10 <- lik_long
+
+#this data created using curving_grades_datasets.R code 
+```
+
+#1. What do students think curving is? 
+
+```{r curving definitions}
+#curving definition questions 
+define_curves_Qs <- c("Q61", "Q63") #Q11 also a definition 
+
+
+nut10 %>%
+  group_by(curve_def) %>%
+  distinct(sid) %>%
+    tally()
+
+nut10 %>%
+  filter(question %in% define_curves_Qs) %>%
+  group_by(prompt) %>%
+  drop_na(score) %>%
+  summarise(mean_score = mean(score),
+            se_score = std.error(score),
+            median_score = median(score)) 
+```
+```{r curve definitions plot}
+#what definition do most students hold of curving?
+
+full_curve_definitions <- c("Curved courses have a set % of As, Bs, Cs , Ds, and Fs they will give. Thus, students are ranked and assigned the letter grade based on their ranking regardless of their actual course grade.", 
+                            "Curved courses scale students grades so that the class average is a specific desired grade (let's say B-), without caring about the specific number of As, Bs, etc in the class.", 
+                            "Curved courses scale student grades so that the majority of students pass the class.", 
+                            "Other") 
+  
+  nut10 %>%
+  drop_na(curve_def) %>%
+  group_by(curve_def) %>%
+  distinct(sid, .keep_all = TRUE) %>%
+  tally() %>%
+  ggplot(aes(y = rev(curve_def), x = (n/197)*100, fill = curve_def)) +
+  geom_col(color = "black") + 
+  scale_fill_brewer(palette = "Pastel2") + 
+  scale_y_discrete(labels = function(x) str_wrap(rev(full_curve_definitions), width = 40)) + #change width if coord_flip on
+  labs(y = NULL,  x= "Percent of responses (%)") + 
+  theme_classic(base_size = 14) + 
+  theme(legend.position = "none")
+```
+
+```{r curving for As Failures}
+#what do students think curving means for As and failures?
+
+nut10 %>%
+  filter(question %in% define_curves_Qs) %>%
+  group_by(prompt) %>%
+  drop_na(score) %>%
+  ggplot(aes(x = prompt, y = score)) + 
+  stat_summary(.fun = "mean_se", geom = "col", fill = "white", color = "black") + 
+  stat_summary(.fun = "mean_se", geom = "errorbar", width = 0.5) + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 30)) + 
+  labs(x = NULL, y = "Likert Score") + 
+  theme_classic(base_size = 14) 
+
+```
+#2. Correlate students' definition of curving to their preferences 
+```{r factor 1 positive beliefs}
+#factor1 in Natalia's email (positive views about curving)
+  #Q57_3 - Curving  reduces number of students who fail
+  #Q57_13 if doing poorly, rahter curved than not curved
+  #Q57_2- curving benefits all students
+  #Q57_5 - curves helpful to students wiht less experience
+  #Q57_1 curving classes makes them more fair 
+
+factor1 <- c("Q57_3", "Q57_13", "Q57_2", "Q57_5", "Q57_1")
+
+
+#rowwise average across factor 1 (all coded in same direction)
+#then, group / plot according to response to Q11 (curving preference)
+
+factor1col<-
+nut10 %>%
+  filter(question %in% factor1) %>%
+  drop_na(score) %>%
+  group_by(sid) %>%
+  mutate(factor1score = mean(score)) %>% #verified that this uses the group_by sid to "summarise" for each individual 
+  ungroup() %>%
+  select(sid, factor1score) %>%
+  distinct(sid, .keep_all = TRUE)
+
+
+nut10 <- left_join(nut10,factor1col, by = "sid")
+
+nut10 %>%
+  #drop_na(curve_def) %>%
+  group_by(curve_def) %>%
+  distinct(sid, .keep_all = TRUE) %>%
+  summarise(n = n(),  #why are there so many?!? why are there duplicates for each student? 
+            mean_fac1_score = mean(factor1score), 
+            se_fac1 = std.error(factor1score)) 
+```
+```{r factor 1 across all data}
+#factor1 across all data (n = 611), regarless of curving definition 
+nut10 %>%
+  filter(question %in% factor1) %>%
+  distinct(sid,question, .keep_all = TRUE) %>%
+  ggplot(aes(x = prompt, y = score, fill = prompt)) + 
+  stat_summary(geom = "col") + 
+  stat_summary(geom = "errorbar", width = 0.5) +  
+  scale_fill_brewer(labels = function(x) str_wrap(x, width = 50)) + 
+  labs(x = "Question", y = "Likert Score", fill = "Question") + 
+  scale_x_discrete(labels = c("1","2","3","4","5")) + 
+  #scale_fill_discrete(labels = function(x) str_wrap(x, width = 20)) +
+  theme_classic(base_size = 14) + 
+  theme(legend.position = "left")
+```
+
+```{r factor 1 by curve def}
+#show the separate bar graphs for each element of factor 1 for each of the short responses to Q11 
+
+p1 <-
+nut10 %>%
+  filter(curve_def != "Other" & !is.na(curve_def)) %>%
+  filter(question %in% factor1) %>%
+  ggplot(aes(x = prompt, y = score, fill = prompt)) + 
+  stat_summary(geom = "col") + 
+  stat_summary(geom = "errorbar", width = 0.5) +  
+  scale_fill_brewer(labels = function(x) str_wrap(x, width = 50)) + 
+  labs(x = "Question", y = "Likert Score", fill = "Question") + 
+  scale_x_discrete(labels = c("1","2","3","4","5")) + 
+  #scale_fill_discrete(labels = function(x) str_wrap(x, width = 20)) +
+  facet_grid(cols = vars(curve_def),
+             labeller = labeller(curve_def= label_wrap_gen(width = 20))) + 
+  theme_classic(base_size = 14) + 
+  theme(legend.position = "left")
+
+factor1_legend<-get_legend(p1)
+
+#print out plots
+p1 + theme(legend.position = "none")
+
+plot_grid(factor1_legend)
+
+```
+  
+```{r average factor1 by curve_def}
+nut10 %>%
+  filter(curve_def != "Other" & !is.na(curve_def)) %>%
+  distinct(sid, .keep_all = TRUE) %>%
+  ggplot(aes(x = curve_def, y = factor1score, fill = curve_def)) + 
+  stat_summary(geom = "col", color = "black") + 
+  stat_summary(geom = "errorbar", width = 0.5) +  
+  scale_fill_brewer(palette = "Pastel2") + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 20)) + 
+  labs(x = "Curving conception", y = "Positive conceptions of curving \n(average score)") + 
+  theme_classic(base_size = 14)  + 
+  theme(legend.position = "none")
+```
+
+# 3. Does student curving preference correlate with test anxiety?
+```{r test anxiety}
+#create an aggregate test anxiety score 
+
+anxietyQs <- c("Q77_1", "Q77_2", "Q77_3", "Q77_4", #Ballen et al 2017 Qs
+               "Q77_5", "Q77_6", "Q77_7", "Q77_8")
+
+#average scores for each question 
+
+nut10 %>%
+  filter(question %in% anxietyQs) %>%
+  group_by(question, prompt) %>%
+  drop_na(score) %>%
+  summarise(n = n(),
+            mean_score = mean(score),
+            se_score = std.error(score),
+            median_score = median(score)) 
+
+test_anx_col <-
+nut10 %>%
+  #negatively code Q77_5, Q77_6, Q77_8 for aggregate score 
+  mutate(score = ifelse(question %in% c("Q77_5", "Q77_6", "Q77_8"), -score, score)) %>%
+  filter(question %in% anxietyQs) %>%
+  drop_na(score) %>%
+  group_by(sid) %>%
+  mutate(test_anxiety =  mean(score)) %>%
+  ungroup() %>%
+  select(sid, test_anxiety) %>%
+  distinct(sid, .keep_all = TRUE)
+  
+
+#append that to the factor1score data. 
+
+nut10 <- left_join(nut10, test_anx_col, by = "sid")
+
+#then, correlate the factor1score with the testanxiety score. 
+cor.test(nut10$test_anxiety, nut10$factor1score) #significantly correlated! 
+
+
+nut10 %>%
+  drop_na(curve_def)%>%
+  filter(curve_def != "Other") %>%
+ lm(factor1score ~ test_anxiety*curve_def, data = .) %>%
+  summary(.) #stronger relationships b/w test anxiety and curving prefs.when most students passs or scaled. 
+
+```
+```{r}
+#Look at that relationship within / across groups for the subset that did the supplemental survey. 
+nut10 %>%
+  distinct(sid, .keep_all = TRUE) %>%
+  ggplot(aes(x = test_anxiety, y = factor1score)) + 
+  #geom_point() + 
+  geom_count(color = "gray", alpha = 0.5) + 
+  geom_smooth(method = "lm") + 
+  labs(x = "Test anxiety \n(composite score)", y = "Positive perceptions of curving \n(composite score)") + 
+  theme_classic()
+
+```
+
+
+```{r test anx vs curving by curve def}
+#Look at that relationship within / across groups for the subset that did the supplemental survey. 
+nut10 %>%
+  filter(curve_def != "Other" & !is.na(curve_def)) %>%
+  ggplot(aes(x = test_anxiety, y = factor1score, fill = curve_def)) + 
+  geom_count(color = "grey",pch = 21, alpha = 0.9) + 
+  geom_smooth(aes(color = curve_def),method = "lm") + 
+  scale_fill_brewer(palette = "Pastel2") + 
+  scale_color_brewer(palette = "Pastel2") + 
+  labs(x = "Test anxiety \n(composite score)", y = "Positive perceptions of curving \n(composite score)", 
+       color = "Curving definition", fill = "Curving definition") + 
+  theme_classic()
+
+```
+
+
+#4. Does curving increase student competitiveness / cooperation? 
+```{r student competitiveness}
+
+#student competitiveness
+
+#factor 2 in Natalia's email to Brian Sato
+#includes Qs: Q57_4, Q57_5, Q59_11, Q59_13
+
+competitionQs <- c("Q57_4", "Q57_5", "Q59_11", "Q59_13")
+
+#look at the data in aggregate for ALL students that answered 
+
+nut10 %>%
+  filter(question %in% competitionQs) %>%
+  group_by(prompt) %>%
+  nest() %>%
+  mutate(ttest = lapply(data, function(df) t.test(df$score, mu = 0)), #one-sided t-test, mean diff from 0?
+         tidy_t = map(ttest, tidy)) %>%
+  unnest(tidy_t) %>%
+  mutate(p.value = round(p.value, digits = 4)) %>%
+  
+  #CAN I PLOT THIS? YES!
+  ggplot(aes(x = prompt, y = estimate, fill = prompt)) +
+  geom_col(color = "black") +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high ), width = 0.5) +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 25)) + 
+  scale_fill_brewer(palette = "BuPu") + 
+  #geom_text(aes(y = conf.high + 0.5, label = sig), size = 6)+   
+  labs(y = "Average Likert score", x = NULL, 
+       title = "Students do not believe curving hinders cooperation") + 
+  #ylim(-1,1)+
+  theme_classic() + theme(legend.position = "none")
+```
+
+```{r competitiveness by definition}
+#look at the competitiveness/cooperation scores across the student preferences. 
+
+nut10 %>%
+  filter(curve_def != "Other" & !is.na(curve_def)) %>%
+  filter(question %in% competitionQs) %>%
+  ggplot(aes(x = prompt, y = score, fill = prompt)) + 
+  stat_summary(geom = "col") + 
+  stat_summary(geom = "errorbar", width = 0.5) +  
+  scale_fill_brewer(palette = "BuPu",labels = function(x) str_wrap(x, width = 50)) +  
+  labs(x = "Question", y = "Likert Score", fill = "Question") + 
+  scale_x_discrete(labels = c("1","2","3","4")) + 
+  #scale_fill_discrete(labels = function(x) str_wrap(x, width = 20)) +
+  facet_grid(cols = vars(curve_def),
+             labeller = labeller(curve_def= label_wrap_gen(width = 20))) + 
+  theme_classic(base_size = 14) + 
+  theme(legend.position = "none")
+
+```
+
+
+
+
