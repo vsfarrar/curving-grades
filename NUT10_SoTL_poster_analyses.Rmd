@@ -253,7 +253,7 @@ competitionQs <- c("Q57_4", "Q57_5", "Q59_11", "Q59_13")
 #look at the data in aggregate for ALL students that answered 
 
 nut10 %>%
-  filter(question %in% competitionQs) %>%
+  filter(question %in% factor3) %>%
   group_by(prompt) %>%
   nest() %>%
   mutate(ttest = lapply(data, function(df) t.test(df$score, mu = 0)), #one-sided t-test, mean diff from 0?
