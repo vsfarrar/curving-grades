@@ -6,8 +6,8 @@ library(plotrix) #for std.error
 library(broom)
 library(forcats)
 library(RColorBrewer)
-library(EnvStats) #for stat n
 library(cowplot)
+library(ggsignif)
 
 #data
 setwd("~/Documents/projects/curving-grades/")
@@ -15,7 +15,11 @@ NUT10_likert <- read.csv("NUT10_Likert_only.csv")
 NUT10supp <- read.csv("NUT10_remaining_surveys.csv") #4 extra questions added after survey launched
 prompt_key <-read.delim("curving_questions_prompt_key_tabdelim.txt",sep = "\t")
 
-#DATA FILTERING, CLEANING
+#demographic data
+nut10demo <- read.csv(file = "~/Documents/projects/curving-grades/nut10_wrangled_2020-12-10.csv")
+
+
+#DATA FILTERING, CLEANING ####
 
 #filter likert dataset
 
@@ -72,14 +76,20 @@ full_data$curve_def <-
       curve_def == full_curve_defs[3] ~ "scaled_avg",
       TRUE ~  curve_def
     ))
-  
-#CONVERT LIKERT Qs to NUMERIC
+    
+#Add Demographic Data to full_data ####
+nut10demo$SID <- as.character(nut10demo$SID) #prepare for join
+
+#join together demographics data and likert responses
+full_data_demo <- left_join(full_data, nut10demo, by = c("sid" = "SID"))
+
+#CONVERT LIKERT Qs to NUMERIC ####
 
 #center neutrals at 0 
 #-2 = Strongly Disagree, -1 = Disagree, 0 = Neutral, +1 = Agree, +2 = Strongly Disagree 
 
 lik_long <-
-  full_data %>%
+  full_data_demo %>%
   #select likert Qs only
   select(-Q45_1, -Q47, -Q79, -Q75_15, -Q9, -Q11_4_TEXT) %>% #other mult.choice, Q79 free response, Q75_15 blank #rename Q11 curve definition so that it does not get pivoted
   #pivot to long format: one question per row
