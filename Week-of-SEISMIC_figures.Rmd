@@ -1,0 +1,280 @@
+---
+title: "SoTL 2020 Poster Figures"
+output: html_notebook
+---
+```{r setup}
+#data import 
+setwd("~/Documents/GitHub/curving-grades/")
+source("curving_grades_datasets.R")
+
+setwd("~/Documents/GitHub/curving-grades/")
+source("curving_grades_functions.R")
+
+#original survey and supplemental survey for NUT10, long format
+nut10 <- lik_long
+
+#this data created using curving_grades_datasets.R code 
+```
+# Demographics
+```{r}
+  lik_long %>%
+  distinct(sid, .keep_all = T) %>%
+  summarise(n = n(),
+            percent_urm = (sum(IS_URM == 1, na.rm = T)/n)*100,
+            percent_transfer = (sum(is_xfer == TRUE,na.rm = T)/n)*100,
+            percent_esl = (sum(ESL == "1",  na.rm = T)/n)*100, 
+            percent_first_gen =  (sum(FIRST_GENERATION == "1",  na.rm = T)/n)*100,
+            percent_low_income = (sum(LOW_INCOME == "1",  na.rm = T)/n)*100, 
+            percent_international = (sum(STARTED_INTERNATIONAL == "1", na.rm = T)/n)*100,
+            avg_gpa_prior = mean(UCD_OVERALL_GPA, na.rm = T)) %>%
+  t()%>% #transpose
+  as.data.frame() 
+```
+```{r}
+  lik_long %>%
+  distinct(sid, .keep_all = T) %>% 
+  count(CLASS_LEVEL) %>%
+  mutate(perc = n/590)
+```
+
+
+# Overall Student Perceptions
+```{r}
+#factor 1 
+
+factor1 <- c("Q57_9", "Q59_14", "Q57_7", "Q57_1", "Q57_5", "Q57_2")
+
+factor1graph <-
+nut10 %>%
+  filter(question %in% factor1) %>%
+  mutate(question = factor(question, levels = factor1)) %>%
+  arrange(question) %>%
+  ggplot(aes(x = question, y = score, fill = question)) + 
+  stat_summary(geom = "col", color = "black", size = 1) + 
+  stat_summary(geom = "errorbar", width = 0.5, size = 1) +  
+  geom_hline(yintercept = 0, size = 1) + 
+  scale_fill_brewer(labels = function(x) str_wrap(x, width = 50)) +
+  labs(x = NULL, y =  NULL, fill = "Question") + 
+  #scale_fill_discrete(labels = function(x) str_wrap(x, width = 20)) +
+  ylim(-0.5, 1) + 
+  theme_classic(base_size = 30) + 
+  theme(legend.position = "none", 
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.line.x = element_blank(),
+        axis.text.y = element_text(angle = 90, color = "black"))
+
+factor1graph
+
+#ggsave("~/Desktop/factor1graph.png", factor1graph, width = 7.25, height = 7.25, units = "in", dpi = 300)
+```
+
+```{r}
+factor2 <- c("Q59_13", "Q57_4", "Q57_6", "Q59_11", "Q59_4")
+
+factor2graph<-
+nut10 %>%
+    filter(question %in% factor2) %>%
+    group_by(question,prompt) %>%
+    summarise(n = n(), 
+              mean_score = mean(score, na.rm = T), 
+              se = std.error(score, na.rm = T)) %>%
+  mutate(question = factor(question, levels = factor2)) %>%
+  arrange(question) %>%
+  ggplot(aes(x = question, y = mean_score, fill = question)) + 
+  geom_col(color = "black", size = 1) + 
+  geom_errorbar(aes(ymin = mean_score-se, ymax = mean_score+se), width = 0.5, size =1) +  
+  geom_hline(yintercept = 0, size = 1) + 
+  scale_fill_brewer(palette = "YlOrBr") +
+  labs(x = NULL, y = NULL, fill = "Question") + 
+  #scale_fill_discrete(labels = function(x) str_wrap(x, width = 20)) +
+  ylim(-0.6, 0.5) + 
+  theme_classic(base_size = 30) + 
+  theme(legend.position = "none", 
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.line.x = element_blank(),
+        axis.text.y = element_text(angle = 90, color = "black"))
+
+#ggsave("~/Desktop/factor2graph.png", factor2graph, width = 5.9, height = 6, units = "in", dpi = 300)
+
+```
+
+```{r}
+factor3 <- c("Q57_8", "Q57_12", "Q57_14")
+
+factor3graph<-
+nut10 %>%
+    filter(question %in% factor3) %>%
+    group_by(question,prompt) %>%
+    summarise(n = n(), 
+              mean_score = mean(score, na.rm = T), 
+              se = std.error(score, na.rm = T)) %>%
+  mutate(question = factor(question, levels = factor3)) %>%
+  arrange(question) %>%
+  ggplot(aes(x = question, y = mean_score, fill = question)) + 
+  geom_col(color = "black", size = 1) + 
+  geom_errorbar(aes(ymin = mean_score-se, ymax = mean_score+se), width = 0.5, size = 1) +  
+  geom_hline(yintercept = 0, size = 1) + 
+  scale_fill_brewer(palette = "Purples") +
+  labs(x = NULL, y = NULL, fill = "Question") + 
+  #scale_fill_discrete(labels = function(x) str_wrap(x, width = 20)) +
+  ylim(-0.25, 1.25) + 
+  theme_classic(base_size = 30) + 
+  theme(legend.position = "none", 
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.line.x = element_blank(),
+        axis.text.y = element_text(angle = 90, color = "black"))
+
+#ggsave("~/Desktop/factor3graph.png", factor3graph, width = 4.75, height = 6, units = "in", dpi = 300)
+
+```
+# Perceptions by Curve Definitions
+```{r curve defintions}
+#what definition do most students hold of curving?
+nut10 %>%
+  group_by(curve_def) %>%
+  distinct(sid) %>%
+    tally() %>%
+  mutate(perc = (n/283)*100)
+
+#plot data 
+plot_definitions <- 
+nut10 %>%
+  distinct(sid,.keep_all = T) %>%
+  drop_na(curve_def) %>%
+  group_by(curve_def) %>%
+  tally() %>%
+  #next two lines arrange the bars in order of sample size
+  arrange(desc(n)) %>%
+  mutate(curve_def = factor(curve_def, unique(curve_def))) %>%
+  ggplot(aes(x = curve_def, y = (n/283)*100, #makes it a percent of total
+             fill = curve_def)) +
+  geom_col(color = "black") + 
+  scale_fill_manual(values = c("ranked"= "salmon2", 
+                               "scaled_avg" = "mediumpurple1", 
+                               "scaled_pass" = "turquoise3", 
+                               "Other" = "gray")) +
+    theme_classic(base_size = 16)
+
+#view plot
+plot_definitions
+  
+  #format for export to powerpoint (vertical graph)
+  plot_definitions + 
+  labs(x = NULL, y = NULL) + 
+  theme_classic(base_size = 30) + 
+  theme(legend.position = "none", 
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.line.x = element_blank(),
+        axis.text.y = element_text(angle = 90, color = "black"))
+
+```
+
+
+```{r factor 1 by curve_def}
+
+def_colors = c("salmon2", "mediumpurple1", "turquoise3")
+def_xlabs = c("ranked", "scaled to avg", "scaled so most pass")
+#factor 1
+
+fac1_bydef <-
+nut10 %>%
+  filter(curve_def != "Other" & !is.na(curve_def)) %>%
+  filter(question %in% factor1) %>%
+  drop_na(score) %>%
+  group_by(sid) %>%
+  mutate(factor1score = mean(score)) %>% #verified that this uses the group_by sid to "summarise" for each individual 
+  ungroup() %>%
+  distinct(sid, .keep_all = TRUE) %>%
+  ggplot(aes(x = curve_def, y = factor1score, fill = curve_def)) + 
+  stat_summary(geom = "col", color = "black", size = 1) + 
+  stat_summary(geom = "errorbar", width = 0.5, size = 1) +  
+  geom_signif(y_position=0.81, xmin=1, xmax=2,
+              annotation=c("*"), tip_length = 0.01, textsize = 8, size = 1)  + 
+    geom_hline(yintercept = 0, size = 1) +
+  scale_fill_manual(values = def_colors) + 
+  scale_x_discrete(labels = function(x) str_wrap(def_xlabs, width = 10)) + 
+  labs(x =  NULL, y = "Average Likert score") + 
+  theme_classic(base_size = 20)  + 
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5), 
+        axis.text = element_text(color = "black"))
+```
+
+```{r t-tests: factor1 by curving definition}
+nut10 %>%
+  filter(curve_def != "Other" & !is.na(curve_def)) %>%
+  filter(question %in% factor1) %>%
+  drop_na(score) %>%
+  group_by(sid) %>%
+  mutate(factor1score = mean(score)) %>% #verified that this uses the group_by sid to "summarise" for each individual 
+  ungroup() %>%
+  distinct(sid, .keep_all = TRUE) %>%
+  pairwise.t.test(.$factor1score, .$curve_def, p.adj = "bonf", data = .)
+
+```
+
+```{r factor2 by curve_def}
+nut10 %>%
+  filter(curve_def != "Other" & !is.na(curve_def)) %>%
+  filter(question %in% factor2) %>%
+  drop_na(score) %>%
+  group_by(sid) %>%
+  mutate(factor2score = mean(score)) %>% #verified that this uses the group_by sid to "summarise" for each individual 
+  ungroup() %>%
+  distinct(sid, .keep_all = TRUE) %>%
+  ggplot(aes(x = curve_def, y = factor2score, fill = curve_def)) + 
+  stat_summary(geom = "col", color = "black", size = 1) + 
+  stat_summary(geom = "errorbar", width = 0.5, size = 1) + 
+  geom_signif(y_position=0.21, xmin=1, xmax=2,
+              annotation=c("*"), tip_length = 0.01, textsize = 8, size = 1) + 
+  geom_hline(yintercept = 0, size = 1) +
+  scale_fill_manual(values = def_colors) + 
+  scale_x_discrete(labels = function(x) str_wrap(def_xlabs, width = 10)) + 
+  labs(x = NULL, y = "Average Likert score") + 
+  theme_classic(base_size = 20)  + 
+  theme(legend.position = "none", 
+        plot.title = element_text(hjust = 0.5),
+        axis.text = element_text(color = "black"))
+```
+```{r t-tests: factor2 by curving definition}
+nut10 %>%
+  filter(curve_def != "Other" & !is.na(curve_def)) %>%
+  filter(question %in% factor2) %>%
+  drop_na(score) %>%
+  group_by(sid) %>%
+  mutate(factor2score = mean(score)) %>% #verified that this uses the group_by sid to "summarise" for each individual 
+  ungroup() %>%
+  distinct(sid, .keep_all = TRUE) %>%
+  pairwise.t.test(.$factor2score, .$curve_def, p.adj = "bonf", data = .)
+
+```
+
+```{r preference by curve_def}
+#preference question alone
+#Q57_7: "I prefer classes that curve student grades to those that do not curve."
+
+nut10 %>%
+  filter(curve_def != "Other" & !is.na(curve_def)) %>%
+  filter(question == "Q57_7") %>%
+  drop_na(score) %>%
+  distinct(sid, .keep_all = TRUE) %>%
+  ggplot(aes(x = curve_def, y = score, fill = curve_def)) + 
+  stat_summary(geom = "col", color = "black", size = 1) + 
+  stat_summary(geom = "errorbar", width = 0.5, size = 1) +  
+    geom_hline(yintercept = 0, size = 1) +
+  scale_fill_manual(values = def_colors) + 
+  scale_x_discrete(labels = function(x) str_wrap(def_xlabs, width = 10)) + 
+  labs(x =  NULL, y = "Average Likert score") + 
+  theme_classic(base_size = 20)  + 
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5), 
+        axis.text = element_text(color = "black"))
+```
+
+
+
+
