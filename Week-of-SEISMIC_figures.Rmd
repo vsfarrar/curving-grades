@@ -16,7 +16,7 @@ nut10 <- lik_long
 #this data created using curving_grades_datasets.R code 
 ```
 # Demographics
-```{r}
+```{r percent demographics}
   lik_long %>%
   distinct(sid, .keep_all = T) %>%
   summarise(n = n(),
@@ -30,16 +30,43 @@ nut10 <- lik_long
   t()%>% #transpose
   as.data.frame() 
 ```
-```{r}
+```{r class level by transfer status}
   lik_long %>%
   distinct(sid, .keep_all = T) %>% 
-  count(CLASS_LEVEL) %>%
-  mutate(perc = n/590)
+  count(CLASS_LEVEL, is_xfer) %>%
+  mutate(perc = n/590) %>%
+  mutate(CLASS_LEVEL = factor(CLASS_LEVEL, levels = c("FR","SO","JR","SR"))) %>%
+  drop_na(CLASS_LEVEL) %>%
+  ggplot(aes(x = CLASS_LEVEL, y = perc*100, fill = is_xfer)) + 
+    geom_col(color = "black", size = 1) + 
+    labs(x = "Class level", y = "Percent (%)", fill = NULL) +
+    scale_fill_manual(values = c("white","#00CED1"), labels = c("First-Year start", "Transfer")) +
+    theme_classic(base_size = 20) + 
+    theme(
+        plot.title = element_text(hjust = 0.5), 
+        axis.text = element_text(color = "black"))
+```
+```{r percent in first year}
+#what percent of students were in their first year at the university?
+  lik_long %>%
+  distinct(sid, .keep_all = T) %>% 
+  count(ADMIT_TERM == "202010") %>% #fall 2020, the term the class was offered
+  mutate(perc = n/590*100)
+```
+```{r STEM majors}
+#STEM vs non-STEM majors
+lik_long <- left_join(lik_long, majors_list)
+
+lik_long %>%
+  distinct(sid, .keep_all = T) %>% 
+  count(STEM) %>%
+  mutate(n_total = sum(n), 
+         perc = n/n_total*100)
 ```
 
 
 # Overall Student Perceptions
-```{r}
+```{r factor 1}
 #factor 1 
 
 factor1 <- c("Q57_9", "Q59_14", "Q57_7", "Q57_1", "Q57_5", "Q57_2")
@@ -69,7 +96,7 @@ factor1graph
 #ggsave("~/Desktop/factor1graph.png", factor1graph, width = 7.25, height = 7.25, units = "in", dpi = 300)
 ```
 
-```{r}
+```{r factor 2}
 factor2 <- c("Q59_13", "Q57_4", "Q57_6", "Q59_11", "Q59_4")
 
 factor2graph<-
@@ -100,7 +127,7 @@ nut10 %>%
 
 ```
 
-```{r}
+```{r factor 3}
 factor3 <- c("Q57_8", "Q57_12", "Q57_14")
 
 factor3graph<-
@@ -172,6 +199,66 @@ plot_definitions
         axis.text.y = element_text(angle = 90, color = "black"))
 
 ```
+```{r curve def by STEM}
+#curve definitions by STEM major
+curvedef_by_stem <- 
+lik_long %>%
+  distinct(sid,.keep_all = T) %>%
+  drop_na(curve_def) %>% #excludes students without curve definitions
+  add_count(STEM, name = "n_STEM") %>% 
+  group_by(STEM, curve_def) %>%
+  summarise(n_stem = mean(n_STEM), 
+            n = n()) %>%
+  mutate(perc = n/n_stem*100) %>%
+  mutate(curve_def = factor(curve_def, levels = c("scaled_avg","scaled_pass","ranked","Other"))) %>%
+  ggplot(aes(x = curve_def, y = perc, fill = paste(STEM,curve_def,sep="_"), color = curve_def)) + 
+  geom_col(position = position_dodge(0.9), size = 1) + 
+    labs(x = NULL, y = "Percent (%)", fill = NULL) +
+    scale_color_manual(values = c("ranked"= "salmon2", 
+                               "scaled_avg" = "mediumpurple1", 
+                               "scaled_pass" = "turquoise3", 
+                               "Other" = "gray")) + 
+  scale_fill_manual(values = c("white","white","white","white","gray","salmon2","mediumpurple1","turquoise3")) + 
+    theme_classic(base_size = 18) + 
+    theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5), 
+        axis.text = element_text(color = "black"))
+
+#create a prettier legend
+
+stem_legend <- cowplot::get_legend(
+lik_long %>%
+  count(STEM) %>%
+  ggplot(aes(x = STEM, y = n, fill = as.factor(STEM)))+
+  geom_col(color = "black")+ 
+  scale_fill_manual(name = "Major", values = c("white","gray"), labels = c("non-STEM", "STEM")) +
+  theme_classic(base_size = 18) 
+) 
+
+#cowplot with prettier legend
+cowplot::plot_grid(curvedef_by_stem, stem_legend,
+                   rel_widths = c(1,0.2))
+
+#ready for powerpoint export (vertical)
+curvedef_by_stem + 
+    labs(x = NULL, y = NULL) + 
+  theme_classic(base_size = 30) + 
+  theme(legend.position = "none", 
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.line.x = element_blank(),
+        axis.text.y = element_text(angle = 90, color = "black"))
+```
+```{r chi-sq for STEM majors}
+#probability of scaled avg given STEM
+prop.test(x = c(48,67), n = c(143,140))
+
+#probability of scaled pass given STEM
+prop.test(x = c(55,31), n = c(143,140))
+
+```
+
+
 
 
 ```{r factor 1 by curve_def}
@@ -274,6 +361,56 @@ nut10 %>%
         plot.title = element_text(hjust = 0.5), 
         axis.text = element_text(color = "black"))
 ```
+
+# Test Anxiety and Curving ####
+```{r aggregate test anxiety score}
+#create an aggregate test anxiety score 
+
+anxietyQs <- c("Q77_1", "Q77_2", "Q77_3", "Q77_4", #Ballen et al 2017 Qs
+               "Q77_5", "Q77_6", "Q77_7", "Q77_8")
+#negatively code Q77_5, Q77_6, Q77_8 for aggregate score because they are oppositely worded
+
+#average scores for each question 
+lik_long %>%
+  filter(question %in% anxietyQs) %>%
+  group_by(question, prompt) %>%
+  drop_na(score) %>%
+  summarise(n = n(),
+            mean_score = mean(score),
+            se_score = std.error(score),
+            median_score = median(score)) 
+
+lik_long <- 
+lik_long %>%
+  #negatively code Q77_5, Q77_6, Q77_8 for aggregate score 
+  mutate(score = ifelse(question %in% c("Q77_5", "Q77_6", "Q77_8"), -score, score)) %>%
+  group_by(sid) %>%
+  mutate(test_anxiety = sum(score[question %in% anxietyQs], na.rm = T)) %>% 
+  ungroup()
+```
+
+```{r categorical var anxiety}
+hist(lik_long$test_anxiety)
+hist(as.numeric(lik_long$test_anx_cat))
+#create 4 "categories" of anxiety
+#1 = no to low, #2 = mild, #3 = moderate, #4 = high
+lik_long$test_anx_cat <- cut(lik_long$test_anxiety, breaks = c(-16,-12,-4,4,12,16), ordered_result = TRUE)
+hist(as.numeric(lik_long$test_anx_cat))
+```
+```{r factor1 by test_anxiety}
+lik_long %>%
+  group_by(sid) %>%
+  mutate(factor1score = sum(score[question %in% factor1], na.rm = T)) %>% 
+  ungroup() %>%
+  filter(GENDER != "N" & !is.na(GENDER)) %>%
+  ggplot( aes(x = as.factor(test_anx_cat), y = factor1score, fill = test_anx_cat)) + 
+  geom_boxplot()
+
+```
+
+
+
+
 
 
 
