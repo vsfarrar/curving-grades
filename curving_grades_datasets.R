@@ -18,6 +18,8 @@ prompt_key <-read.delim("curving_questions_prompt_key_tabdelim.txt",sep = "\t")
 #demographic data
 nut10demo <- read.csv(file = "~/Documents/projects/curving-grades/nut10_wrangled_2020-12-10.csv")
 
+#majors list by STEM field
+majors_list <-read.csv(file = "~/Documents/projects/curving-grades/majors_list.csv")
 
 #DATA FILTERING, CLEANING ####
 
