@@ -115,8 +115,42 @@ lik_long <-
   #join questions with prompts from survey (for graph titles / legends)
   left_join(., prompt_key) #joins by "question"
 
- 
+#CREATE AGGREGATE SCORES ####
+#create aggregate scores for factors from factor analysis and test anxiety
 
+#__test anxiety aggregate score 
+
+anxietyQs <- c("Q77_1", "Q77_2", "Q77_3", "Q77_4", #Ballen et al 2017 Qs
+               "Q77_5", "Q77_6", "Q77_7", "Q77_8")
+#negatively code Q77_5, Q77_6, Q77_8 for aggregate score because they are oppositely worded
+
+#factor 1
+#positive views of curving 
+factor1 <- c("Q57_9", "Q59_14", "Q57_7", "Q57_1", "Q57_5", "Q57_2")
+#see prompts
+#prompt_key %>% filter(question %in% factor1)
+
+#factor 2
+#effects of curving on peer collaboration and cooperation
+factor2 <- c("Q59_13", "Q57_4", "Q57_6", "Q59_11", "Q59_4")
+
+#factor 3
+#transparency of curving practices
+factor3 <- c("Q57_8", "Q57_12", "Q57_14")
+
+#add aggregate scores to the dataset
+lik_long <- 
+  lik_long %>%
+  #negatively code Q77_5, Q77_6, Q77_8 for aggregate score 
+  mutate(score = ifelse(question %in% c("Q77_5", "Q77_6", "Q77_8"), -score, score)) %>%
+  group_by(sid) %>%
+  mutate(test_anxiety = sum(score[question %in% anxietyQs], na.rm = T),
+         factor1score = sum(score[question %in% factor1], na.rm = T), 
+         factor2score = sum(score[question %in% factor2], na.rm = T), 
+         factor3score = sum(score[question %in% factor3], na.rm = T)) %>% 
+  ungroup()
+
+#CREATE WIDE VERSION ####
 #create likert wide to send to Natalia with numeric-converted Likerts (with cleaned data only)
 likert_wide <-
 lik_long %>%
