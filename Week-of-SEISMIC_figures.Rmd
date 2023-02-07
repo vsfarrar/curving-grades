@@ -277,66 +277,6 @@ plot_definitions
 
 ```
 
-```{r curve def by STEM}
-#curve definitions by STEM major
-curvedef_by_stem <- 
-lik_long %>%
-  distinct(sid,.keep_all = T) %>%
-  drop_na(curve_def) %>% #excludes students without curve definitions
-  add_count(STEM, name = "n_STEM") %>% 
-  group_by(STEM, curve_def) %>%
-  summarise(n_stem = mean(n_STEM), 
-            n = n()) %>%
-  mutate(perc = n/n_stem*100) %>%
-  mutate(curve_def = factor(curve_def, levels = c("scaled_avg","scaled_pass","ranked","Other"))) %>%
-  ggplot(aes(x = curve_def, y = perc, fill = paste(STEM,curve_def,sep="_"), color = curve_def)) + 
-  geom_col(position = position_dodge(0.9), size = 1) + 
-    labs(x = NULL, y = "Percent (%)", fill = NULL) +
-    scale_color_manual(values = c("ranked"= "salmon2", 
-                               "scaled_avg" = "mediumpurple1", 
-                               "scaled_pass" = "turquoise3", 
-                               "Other" = "gray")) + 
-  scale_fill_manual(values = c("white","white","white","white","gray","salmon2","mediumpurple1","turquoise3")) + 
-    theme_classic(base_size = 18) + 
-    theme(legend.position = "none",
-        plot.title = element_text(hjust = 0.5), 
-        axis.text = element_text(color = "black"))
-
-#create a prettier legend
-
-stem_legend <- cowplot::get_legend(
-lik_long %>%
-  count(STEM) %>%
-  ggplot(aes(x = STEM, y = n, fill = as.factor(STEM)))+
-  geom_col(color = "black")+ 
-  scale_fill_manual(name = "Major", values = c("white","gray"), labels = c("non-STEM", "STEM")) +
-  theme_classic(base_size = 18) 
-) 
-
-#cowplot with prettier legend
-cowplot::plot_grid(curvedef_by_stem, stem_legend,
-                   rel_widths = c(1,0.2))
-
-#ready for powerpoint export (vertical)
-curvedef_by_stem + 
-    labs(x = NULL, y = NULL) + 
-  theme_classic(base_size = 30) + 
-  theme(legend.position = "none", 
-        axis.text.x = element_blank(),
-        axis.ticks.x = element_blank(),
-        axis.line.x = element_blank(),
-        axis.text.y = element_text(angle = 90, color = "black"))
-```
-
-```{r chi-sq for STEM majors}
-#probability of scaled avg given STEM
-prop.test(x = c(48,67), n = c(143,140))
-
-#probability of scaled pass given STEM
-prop.test(x = c(55,31), n = c(143,140))
-
-```
-
 ```{r factor 1 by curve_def}
 
 def_colors = c("salmon2", "mediumpurple1", "turquoise3")
@@ -437,6 +377,93 @@ nut10 %>%
   theme(legend.position = "none",
         plot.title = element_text(hjust = 0.5), 
         axis.text = element_text(color = "black"))
+```
+
+
+### Differences by STEM Major 
+```{r curve def by STEM}
+#curve definitions by STEM major
+curvedef_by_stem <- 
+lik_long %>%
+  distinct(sid,.keep_all = T) %>%
+  drop_na(curve_def) %>% #excludes students without curve definitions
+  add_count(STEM, name = "n_STEM") %>% 
+  group_by(STEM, curve_def) %>%
+  summarise(n_stem = mean(n_STEM), 
+            n = n()) %>%
+  mutate(perc = n/n_stem*100) %>%
+  mutate(curve_def = factor(curve_def, levels = c("scaled_avg","scaled_pass","ranked","Other"))) %>%
+  ggplot(aes(x = curve_def, y = perc, fill = paste(STEM,curve_def,sep="_"), color = curve_def)) + 
+  geom_col(position = position_dodge(0.9), size = 1) + 
+    labs(x = NULL, y = "Percent (%)", fill = NULL) +
+    scale_color_manual(values = c("ranked"= "salmon2", 
+                               "scaled_avg" = "mediumpurple1", 
+                               "scaled_pass" = "turquoise3", 
+                               "Other" = "gray")) + 
+  scale_fill_manual(values = c("white","white","white","white","gray","salmon2","mediumpurple1","turquoise3")) + 
+    theme_classic(base_size = 18) + 
+    theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5), 
+        axis.text = element_text(color = "black"))
+
+#create a prettier legend
+
+stem_legend <- cowplot::get_legend(
+lik_long %>%
+  count(STEM) %>%
+  ggplot(aes(x = STEM, y = n, fill = as.factor(STEM)))+
+  geom_col(color = "black")+ 
+  scale_fill_manual(name = "Major", values = c("white","gray"), labels = c("non-STEM", "STEM")) +
+  theme_classic(base_size = 18) 
+) 
+
+#cowplot with prettier legend
+cowplot::plot_grid(curvedef_by_stem, stem_legend,
+                   rel_widths = c(1,0.2))
+
+#ready for powerpoint export (vertical)
+curvedef_by_stem + 
+    labs(x = NULL, y = NULL) + 
+  theme_classic(base_size = 30) + 
+  theme(legend.position = "none", 
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.line.x = element_blank(),
+        axis.text.y = element_text(angle = 90, color = "black"))
+```
+
+```{r chi-sq for STEM majors}
+#probability of scaled avg given STEM
+prop.test(x = c(48,67), n = c(143,140))
+
+#probability of scaled pass given STEM
+prop.test(x = c(55,31), n = c(143,140))
+
+```
+
+```{r factor1 by STEM x curve_def}
+#factor 1 scores by STEM major
+lik_long %>%
+  group_by(STEM, curve_def) %>%
+  summarise(mean(factor1score), 
+            std.error(factor1score))
+
+lik_long %>%
+  distinct(sid, .keep_all = T) %>%
+  filter(!is.na(curve_def) & curve_def != "Other") %>%
+  ggplot(aes(x = interaction(STEM,curve_def), y = factor1score, fill = interaction(STEM,curve_def), color = curve_def)) + 
+  stat_summary(geom = "col", fun = "mean") + 
+  stat_summary(geom = "errorbar", fun.data = "mean_cl_normal", width = 0.5) + 
+  scale_fill_manual(values = c("white", "salmon2", 
+                               "white", "mediumpurple1",
+                               "white","turquoise3")) + 
+  scale_color_manual(values = c("salmon3", "mediumpurple3", "turquoise4")) + 
+  scale_x_discrete(breaks = c(1.5,3.5,5.5), 
+                 labels = c("ranked","scaled_avg","scaled_to_pass")) + 
+  labs(x = "\nCurve Definition", y = "Average Likert Score \n(Factor1)") + 
+  theme_classic(base_size = 20) +
+  theme(legend.position = "none")
+                      
 ```
 
 # Test Anxiety and Curving
