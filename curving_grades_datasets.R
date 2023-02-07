@@ -142,12 +142,12 @@ factor3 <- c("Q57_8", "Q57_12", "Q57_14")
 lik_long <- 
   lik_long %>%
   #negatively code Q77_5, Q77_6, Q77_8 for aggregate score 
-  mutate(score = ifelse(question %in% c("Q77_5", "Q77_6", "Q77_8"), -score, score)) %>%
+  mutate(score2 = ifelse(question %in% c("Q77_5", "Q77_6", "Q77_8"), -score, score)) %>%
   group_by(sid) %>%
-  mutate(test_anxiety = sum(score[question %in% anxietyQs], na.rm = T),
-         factor1score = sum(score[question %in% factor1], na.rm = T), 
-         factor2score = sum(score[question %in% factor2], na.rm = T), 
-         factor3score = sum(score[question %in% factor3], na.rm = T)) %>% 
+  mutate(test_anxiety = sum(score2[question %in% anxietyQs], na.rm = T),
+         factor1score = sum(score2[question %in% factor1], na.rm = T), 
+         factor2score = sum(score2[question %in% factor2], na.rm = T), 
+         factor3score = sum(score2[question %in% factor3], na.rm = T)) %>% 
   ungroup()
 
 #CREATE WIDE VERSION ####
