@@ -37,7 +37,7 @@ nut10 <- lik_long
   as.data.frame() 
 ```
 
-```{r class level by transfer status}
+```{r class level by transfer}
   lik_long %>%
   distinct(sid, .keep_all = T) %>% 
   count(CLASS_LEVEL, is_xfer) %>%
@@ -52,7 +52,9 @@ nut10 <- lik_long
     theme(
         plot.title = element_text(hjust = 0.5), 
         axis.text = element_text(color = "black"))
+```
 
+```{r class level by transfer by first term}
 #first term at university by transfer
   lik_long %>%
   distinct(sid, .keep_all = T) %>% 
@@ -68,10 +70,10 @@ nut10 <- lik_long
     labs(x = "Class level", y = "Percent (%)", fill = "first term at university?") +
     scale_fill_manual(values = c("white","#00CED1"), labels = c("no", "yes")) +
     facet_wrap(~is_xfer) +
-    theme_classic(base_size = 25) + 
-    theme(
+    theme_classic(base_size = 20) + 
+    theme(legend.position = "bottom",
         plot.title = element_text(hjust = 0.5), 
-        axis.text = element_text(color = "black"))
+        axis.text = element_text(color = "black")) 
 ```
 
 ```{r percent in first year}
@@ -156,12 +158,13 @@ lik_long %>%
   distinct(sid, .keep_all = T) %>%
   filter(!is.na(ADMIT_TERM))%>%
 ggplot(aes(x = ADMIT_TERM=="202010", y = factor1score, fill = ADMIT_TERM == "202010")) + 
-  geom_boxplot() + 
-  labs(x = "First Term at University?", y = "Average Likert Score (Factor 1)",
+  stat_summary(geom = "col", fun = "mean", color = "black") + 
+  stat_summary(geom = "errorbar", fun.data = "mean_cl_normal", width = 0.5) + 
+  labs(x = "First Term at University?", y = "Average Likert Score \n(Factor 1)",
        fill = NULL) +
   scale_x_reverse(breaks = c(1,0), labels = c("Yes","No")) + 
   scale_fill_manual(values = c("white","#00CED1")) + 
-  theme_classic(base_size = 14) + 
+  theme_classic(base_size = 20) + 
   theme(legend.position = "none")
 
 #quick t-test
@@ -440,6 +443,35 @@ prop.test(x = c(48,67), n = c(143,140))
 prop.test(x = c(55,31), n = c(143,140))
 
 ```
+
+```{r factor 1 by STEM}
+lik_long %>%
+  distinct(sid, .keep_all = T) %>%
+  filter(!is.na(curve_def) & curve_def != "Other") %>%
+  ggplot(aes(x = as.factor(STEM), y = factor1score, fill = as.factor(STEM))) + 
+  stat_summary(geom = "col", fun = "mean", color = "black") + 
+  stat_summary(geom = "errorbar", fun.data = "mean_cl_normal", width = 0.5) + 
+  scale_fill_manual(values = c("white", "green3"))  + 
+  scale_x_discrete(labels = c("non-STEM", "STEM")) + 
+  labs(x = "Major", y = "Average Likert Score \n(Factor1)") + 
+  theme_classic(base_size = 20) +
+  theme(legend.position = "none")
+```
+```{r factor 2 by STEM}
+lik_long %>%
+  distinct(sid, .keep_all = T) %>%
+  filter(!is.na(curve_def) & curve_def != "Other") %>%
+  ggplot(aes(x = as.factor(STEM), y = factor2score, fill = as.factor(STEM))) + 
+  stat_summary(geom = "col", fun = "mean", color = "black") + 
+  stat_summary(geom = "errorbar", fun.data = "mean_cl_normal", width = 0.5) + 
+  geom_hline(yintercept = 0) + 
+  scale_fill_manual(values = c("white", "green3"))  + 
+  scale_x_discrete(labels = c("non-STEM", "STEM")) + 
+  labs(x = "Major", y = "Average Likert Score \n(Factor2)") + 
+  theme_classic(base_size = 20) +
+  theme(legend.position = "none")
+```
+
 
 ```{r factor1 by STEM x curve_def}
 #factor 1 scores by STEM major
