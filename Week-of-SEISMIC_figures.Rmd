@@ -280,6 +280,32 @@ plot_definitions
 
 ```
 
+```{r curve_def by first term}
+lik_long %>%
+  distinct(sid,.keep_all = T) %>%
+  filter(curve_def != "Other" & !is.na(curve_def)) %>% #excludes students without curve definitions
+  mutate(first_term = ifelse(ADMIT_TERM == "202010", 1, 0)) %>%
+  drop_na(first_term) %>%
+  add_count(first_term, name = "n_1stTerm") %>% 
+  group_by(first_term, curve_def) %>%
+  summarise(n_first = mean(n_1stTerm), 
+            n = n()) %>%
+  mutate(perc = n/n_first*100) %>%
+  mutate(curve_def = factor(curve_def, levels = c("scaled_avg","scaled_pass","ranked","Other"))) %>%
+  ggplot(aes(x = curve_def, y = perc, fill = paste(first_term,curve_def,sep="_"), color = curve_def)) + 
+  geom_col(position = position_dodge(0.9), size = 1) + 
+    labs(x = NULL, y = "Percent (%)", fill = NULL) +
+    scale_color_manual(values = c("ranked"= "salmon2", 
+                               "scaled_avg" = "mediumpurple1", 
+                               "scaled_pass" = "turquoise3", 
+                               "Other" = "gray")) + 
+  scale_fill_manual(values = c("white","white","white","white","gray","salmon2","mediumpurple1","turquoise3")) + 
+    theme_classic(base_size = 18) + 
+    theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5), 
+        axis.text = element_text(color = "black"))
+```
+
 ```{r factor 1 by curve_def}
 
 def_colors = c("salmon2", "mediumpurple1", "turquoise3")
@@ -569,6 +595,7 @@ lik_long %>%
   lm(factor1score ~ test_anx_cat, data = .) %>%
   anova()
 ```
+
 ```{r factor1 by gender}
 lik_long %>%
   filter(GENDER != "N" & !is.na(GENDER)) %>%
@@ -585,3 +612,39 @@ lik_long %>%
   distinct(sid, .keep_all = TRUE) %>%
   t.test(.$factor1score ~ .$GENDER, data = .)
 ```
+
+```{r factor1 by peer}
+lik_long %>%
+  filter(!is.na(IS_URM)) %>%
+  distinct(sid,.keep_all = T) %>%
+  ggplot( aes(x = as.factor(IS_URM), y = factor1score, fill = as.factor(IS_URM))) + 
+  geom_boxplot() + 
+  labs(x = "URM", y = "Average Likert Score \n(Factor1)") + 
+  scale_fill_manual(values = c("white","red3")) + 
+  theme_classic(base_size = 20) + 
+  theme(legend.position = "none")
+
+#quick t-test
+lik_long %>%
+  filter(!is.na(IS_URM)) %>%
+  distinct(sid, .keep_all = TRUE) %>%
+  t.test(.$factor1score ~ .$IS_URM, data = .)
+```
+```{r factor1 by firstgen}
+lik_long %>%
+  filter(!is.na(FIRST_GENERATION)) %>%
+  distinct(sid,.keep_all = T) %>%
+  ggplot( aes(x = as.factor(FIRST_GENERATION), y = factor1score, fill = as.factor(FIRST_GENERATION))) + 
+  geom_boxplot() + 
+  labs(x = "FirstGeneration", y = "Average Likert Score \n(Factor1)") + 
+  scale_fill_manual(values = c("white","yellow3")) + 
+  theme_classic(base_size = 20) + 
+  theme(legend.position = "none")
+
+#quick t-test
+lik_long %>%
+  filter(!is.na(FIRST_GENERATION)) %>%
+  distinct(sid, .keep_all = TRUE) %>%
+  t.test(.$factor1score ~ .$IS_URM, data = .)
+```
+
